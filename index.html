@@ -997,6 +997,32 @@
             display: none;
         }
 
+        .loader-progress-container {
+            width: 80%;
+            max-width: 300px;
+            height: 6px;
+            background: rgba(255, 215, 0, 0.2);
+            border-radius: 10px;
+            margin: 20px auto 0 auto;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loader-progress-fill {
+            height: 100%;
+            background: #FFD700;
+            width: 0%;
+            transition: width 0.3s ease-out;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .loader-text {
+            color: #FFD700;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            font-family: monospace;
+        }
+
         .envelope-rain-container.active {
             display: block;
         }
@@ -1055,10 +1081,77 @@
                 transform: scale(0.95);
             }
         }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #8B0000 0%, #550000 100%);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 0.8s ease-out;
+        }
+
+        .loader-content {
+            text-align: center;
+            color: #FFD700;
+            padding: 20px;
+        }
+
+        .horse-anim {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            animation: gallop-loader 1s infinite alternate;
+        }
+
+        .loader-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            letter-spacing: 2px;
+            color: #FFD700;
+        }
+
+        .loader-subtitle {
+            font-size: 1.2rem;
+            color: #FFF8DC;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+
+
+        @keyframes gallop-loader {
+            0% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            100% {
+                transform: translateY(-10px) rotate(-5deg);
+            }
+        }
     </style>
 </head>
 
 <body>
+    <div id="loading-screen">
+        <div class="loader-content">
+            <div class="horse-anim">🐎</div>
+            <h1 class="loader-title">海中寶2026金馬奔騰</h1>
+            <p class="loader-subtitle">新春抽大獎，鴻運當頭</p>
+            <div class="loader-progress-container">
+                <div class="loader-progress-fill" id="loader-progress-fill"></div>
+            </div>
+            <div class="loader-text" id="loader-progress-text">0%</div>
+        </div>
+    </div>
     <div id="app">
         <div class="view-container">
 
@@ -1443,6 +1536,89 @@
     </div>
 
     <script>
+        // Loading Screen Logic with Real Progress
+        document.addEventListener('DOMContentLoaded', () => {
+            const loaderFill = document.getElementById('loader-progress-fill');
+            const loaderText = document.getElementById('loader-progress-text');
+            const loaderScreen = document.getElementById('loading-screen');
+
+            // Assets to track (Audio + Images if any)
+            const audioIds = ['audio-scratch', 'audio-spin', 'audio-win', 'audio-fail'];
+            const totalAssets = audioIds.length + 1; // +1 for Window Load
+            let loadedCount = 0;
+            let currentProgress = 0;
+
+            function updateDisplay() {
+                const target = Math.floor((loadedCount / totalAssets) * 100);
+
+                // Smooth animation frame for text
+                const animate = () => {
+                    if (currentProgress < target) {
+                        currentProgress++;
+                        if (loaderFill) loaderFill.style.width = currentProgress + '%';
+                        if (loaderText) loaderText.textContent = currentProgress + '%';
+                        requestAnimationFrame(animate);
+                    } else if (currentProgress >= 100) {
+                        // Complete
+                        setTimeout(() => {
+                            if (loaderScreen) {
+                                loaderScreen.style.opacity = '0';
+                                setTimeout(() => { loaderScreen.remove(); }, 800);
+                            }
+                        }, 500);
+                    }
+                };
+                requestAnimationFrame(animate);
+            }
+
+            // check individual asset
+            function assetLoaded() {
+                loadedCount++;
+                updateDisplay();
+            }
+
+            // Track Audio
+            audioIds.forEach(id => {
+                const audio = document.getElementById(id);
+                if (audio) {
+                    if (audio.readyState >= 3) { // Already loaded
+                        assetLoaded();
+                    } else {
+                        audio.addEventListener('canplaythrough', assetLoaded, { once: true });
+                        audio.addEventListener('error', assetLoaded, { once: true }); // Fail safe defaults to loaded
+                    }
+                } else {
+                    assetLoaded(); // Missing ID counts as done
+                }
+            });
+
+            // Track Window Load
+            if (document.readyState === 'complete') {
+                assetLoaded();
+            } else {
+                window.addEventListener('load', () => {
+                    // Ensure we hit 100% on load regardless of stray assets
+                    if (loadedCount < totalAssets) {
+                        loadedCount = totalAssets;
+                    } else {
+                        // Just increment usually
+                        // loadedCount++; // Actually if we force set, we are good.
+                    }
+                    // Force update to max
+                    loadedCount = totalAssets;
+                    updateDisplay();
+                });
+            }
+
+            // Safety Timeout (3s) to force close if something hangs
+            setTimeout(() => {
+                if (loadedCount < totalAssets) {
+                    loadedCount = totalAssets;
+                    updateDisplay();
+                }
+            }, 5000);
+        });
+
         // Navigation
         const navItems = document.querySelectorAll('.nav-item');
         const views = document.querySelectorAll('.view');
