@@ -464,10 +464,15 @@
             flex: 1;
             height: 100%;
             cursor: pointer;
+            border-top: 3px solid transparent;
+            /* Reserve space for active state */
+            transition: all 0.3s;
         }
 
         .nav-item.active {
             color: var(--primary-color);
+            background: linear-gradient(to bottom, rgba(255, 215, 0, 0.15), transparent);
+            border-top: 3px solid var(--primary-color);
         }
 
         .nav-icon {
@@ -888,9 +893,9 @@
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             gap: 20px;
-            padding: 10px 50%;
+            padding: 10px calc(50% - 80px);
             /* Center first/last items */
-            box-sizing: border-box;
+            /* box-sizing: border-box; Remove to ensure content width + padding allows scroll */
             scrollbar-width: none;
             -webkit-overflow-scrolling: touch;
             align-items: center;
@@ -1425,6 +1430,12 @@
             <div class="ritual-horse">🐎</div>
             <div class="ritual-text">萬馬奔騰 鴻運將至...</div>
         </div>
+
+        <!-- Audio Resources -->
+        <audio id="audio-scratch" src="freesound_community-scratching-83601.mp3" loop></audio>
+        <audio id="audio-spin" src="victorabdo-spin-232536.mp3" loop></audio>
+        <audio id="audio-win" src="win.mp3"></audio>
+        <audio id="audio-fail" src="fail.mp3"></audio>
     </div>
 
     <script>
@@ -1659,8 +1670,22 @@
                 checkScratchPercent(canvas);
             };
 
-            const start = (e) => { isDrawing = true; scratch(e); };
-            const end = () => { isDrawing = false; };
+            const start = (e) => {
+                isDrawing = true;
+                const audio = document.getElementById('audio-scratch');
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(err => console.log('Audio play failed:', err));
+                }
+                scratch(e);
+            };
+            const end = () => {
+                isDrawing = false;
+                const audio = document.getElementById('audio-scratch');
+                if (audio) {
+                    audio.pause();
+                }
+            };
 
             canvas.addEventListener('mousedown', start);
             canvas.addEventListener('mousemove', scratch);
@@ -1693,6 +1718,21 @@
                     // Show Toast Notification
                     if (scratchResult) {
                         showToast(scratchResult.e, scratchResult.t, scratchResult.d);
+
+                        // Play Win/Fail Sound
+                        if (scratchResult.t !== '銘謝惠顧') {
+                            const audioWin = document.getElementById('audio-win');
+                            if (audioWin) {
+                                audioWin.currentTime = 0;
+                                audioWin.play().catch(e => console.log(e));
+                            }
+                        } else {
+                            const audioFail = document.getElementById('audio-fail');
+                            if (audioFail) {
+                                audioFail.currentTime = 0;
+                                audioFail.play().catch(e => console.log(e));
+                            }
+                        }
                     }
                 }
             }
@@ -1714,6 +1754,13 @@
             btn.disabled = true;
             btn.textContent = '轉動中...';
 
+            // Play Sound
+            const audioSpin = document.getElementById('audio-spin');
+            if (audioSpin) {
+                audioSpin.currentTime = 0;
+                audioSpin.play().catch(err => console.log('Spinner Audio failed', err));
+            }
+
             // Logic
             const rand = Math.random() * 100;
             let targetDeg = 0;
@@ -1724,23 +1771,23 @@
             // 0: Diamond (30-90?) -> Actually visually check css.
             // Simplification: 6 segments. 360/6 = 60.
             if (rand < 0.1) { // 0.1% 1st Prize
-                targetDeg = 330; // 💎
+                targetDeg = 30; // 💎 (Visual 30deg)
                 emoji = '💎'; title = '一等獎'; desc = '獲得 段泰國蝦・頂級饕客組！';
             } else if (rand < 1.1) { // 1% 2nd Prize
-                targetDeg = 210; // 🎮
-                emoji = '�'; title = '二等獎'; desc = '獲得 冠軍紅燒牛肉麵禮盒！';
+                targetDeg = 150; // 🎮 (Visual 150deg)
+                emoji = ''; title = '二等獎'; desc = '獲得 冠軍紅燒牛肉麵禮盒！';
             } else if (rand < 11.1) { // 10% 3rd Prize
-                targetDeg = 150; // 🎧
+                targetDeg = 210; // 🎧 (Visual 210deg)
                 emoji = '🎧'; title = '三等獎'; desc = '獲得 古早味滷肉飯調理包！';
             } else if (rand < 41.1) { // 30% 4th Prize
-                targetDeg = 30; // ☕️ 
+                targetDeg = 330; // ☕️ (Visual 330deg)
                 emoji = '☕️'; title = '四等獎'; desc = '獲得 黑糖珍珠奶茶雪糕！';
-            } else if (rand < 85) { // ~44% Free Scratch (Was 20% + remaining?)
-                targetDeg = 270;
+            } else if (rand < 85) { // ~44% Free Scratch
+                targetDeg = 270; // 🆓 (Visual 270deg)
                 emoji = '🆓'; title = '獲得刮刮樂！'; desc = '獲得一張免費刮刮卡！';
                 isFreeScratch = true;
             } else { // Boss Lady (Loss)
-                targetDeg = 90;
+                targetDeg = 90; // 👩‍🍳 (Visual 90deg)
                 emoji = '👩‍🍳'; title = '老闆娘指定'; desc = '再接再厲，聽聽老闆娘怎麼說！';
             }
 
@@ -1763,7 +1810,22 @@
                 btn.textContent = '再抽一次'; // Update button text
                 stopEnvelopeRain(); // Stop rain
 
+                // Stop Sound
+                if (audioSpin) {
+                    audioSpin.pause();
+                    audioSpin.currentTime = 0;
+                }
+
                 showToast(emoji, title, desc);
+
+                // Play Win Sound if not "Boss Lady" (Loss)
+                if (title !== '老闆娘指定') {
+                    const audioWin = document.getElementById('audio-win');
+                    if (audioWin) {
+                        audioWin.currentTime = 0;
+                        audioWin.play().catch(e => console.log(e));
+                    }
+                }
 
                 // No auto-switch for Free Scratch as per request
                 if (isFreeScratch) {
